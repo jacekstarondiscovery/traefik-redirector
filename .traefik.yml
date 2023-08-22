@@ -1,0 +1,9 @@
+displayName: Traefik Live Redirector
+
+summary: "This plugin gets redirect configuration from backend and handle link redirects"
+
+type: middleware
+
+import: github.com/jacekstarondiscovery/traefik-redirector
+
+testData: {}

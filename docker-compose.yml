@@ -1,0 +1,46 @@
+services:
+  traefik:
+    build:
+      dockerfile: Dockerfile.dev
+    container_name: "traefik"
+    command:
+      - "--log.level=DEBUG"
+      - "--accesslog"
+      - "--accesslog.fields.defaultmode=keep"
+      - "--accesslog.fields.names.ClientUsername=drop"
+      - "--accesslog.fields.headers.defaultmode=keep"
+      - "--accesslog.fields.headers.names.User-Agent=redact"
+      - "--accesslog.fields.headers.names.Authorization=drop"
+      - "--accesslog.fields.headers.names.Content-Type=keep"
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+
+      - "--experimental.localPlugins.traefik-redirector.modulename=github.com/jacekstarondiscovery/traefik-redirector"
+    ports:
+      - "80:80"
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - logs-local:/var/log/traefik
+      - .:/app
+
+  whoami:
+    image: "traefik/whoami"
+    container_name: "simple-service"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.middlewares.redirector.plugin.traefik-redirector.clientType=mock"
+      - "traefik.http.middlewares.redirector.plugin.traefik-redirector.maxAge=10"
+      - "traefik.http.middlewares.redirector.plugin.traefik-redirector.endpoint=http://some-endpoint.dev"
+      - "traefik.http.middlewares.redirector.plugin.traefik-redirector.method=POST"
+      - >
+        traefik.http.middlewares.redirector.plugin.traefik-redirector.data=
+
+      - "traefik.http.routers.whoami.rule=Host(`whoami.localhost`)"
+      - "traefik.http.routers.whoami.middlewares=redirector@docker"
+      - "traefik.http.routers.whoami.entrypoints=web"
+
+volumes:
+  logs-local:
