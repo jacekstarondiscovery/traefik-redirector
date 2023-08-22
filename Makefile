@@ -9,3 +9,9 @@ lint:
 
 test:
 	go test -v -cover ./...
+
+vendor:
+	go mod vendor
+
+clean:
+	rm -rf ./vendor
