@@ -32,7 +32,9 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.middlewares.redirector.plugin.traefik-redirector.clientType=mock"
+      - "traefik.http.middlewares.redirector.plugin.traefik-redirector.debugParameter=debug"
       - "traefik.http.middlewares.redirector.plugin.traefik-redirector.maxAge=10"
+      - "traefik.http.middlewares.redirector.plugin.traefik-redirector.cacheControlMaxAge=15"
       - "traefik.http.middlewares.redirector.plugin.traefik-redirector.endpoint=http://some-endpoint.dev"
       - "traefik.http.middlewares.redirector.plugin.traefik-redirector.method=POST"
       - >

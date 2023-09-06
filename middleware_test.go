@@ -20,7 +20,7 @@ func TestServeDebug(t *testing.T) {
 		}
 
 		recorder := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, "http://localhost/?unicorn=redirects", nil)
+		req := httptest.NewRequest(http.MethodGet, "http://localhost/?debug=redirects-dump", nil)
 
 		instance.ServeHTTP(recorder, req)
 
@@ -33,7 +33,7 @@ func TestServeDebug(t *testing.T) {
 		err = json.Unmarshal(body, &data)
 		assert.NoError(t, err)
 
-		assert.Len(t, data["redirects"], 0)
+		assert.Len(t, data["redirects"], 1)
 	})
 }
 

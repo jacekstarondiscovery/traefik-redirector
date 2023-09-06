@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io"
 	"net/http"
+	"time"
 )
 
 type MockClient struct {
@@ -11,6 +12,8 @@ type MockClient struct {
 }
 
 func (m *MockClient) Do(req *http.Request) (*http.Response, error) {
+	// simulate http call
+	time.Sleep(500 * time.Microsecond)
 	responseBody := io.NopCloser(bytes.NewReader([]byte("{\"data\":{\"redirects\":[{\"from\":\"^/xxx\",\"to\":\"https://tvn24.pl\",\"code\":307}]}}")))
 	return &http.Response{
 		StatusCode: 200,
