@@ -8,7 +8,7 @@ lint:
 	golangci-lint run
 
 test:
-	go test -v -cover ./...
+	go test -count=1 -v -cover ./...
 
 vendor:
 	go mod vendor

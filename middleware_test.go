@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 )
 
 func TestServeDebug(t *testing.T) {
@@ -19,20 +20,25 @@ func TestServeDebug(t *testing.T) {
 			t.Fatalf("Error creating %v", err)
 		}
 
-		recorder := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, "http://localhost/?debug=redirects-dump", nil)
+		warmupRecoreder := httptest.NewRecorder()
+		warmupReq := httptest.NewRequest(http.MethodGet, "http://localhost/", nil)
 
-		instance.ServeHTTP(recorder, req)
+		instance.ServeHTTP(warmupRecoreder, warmupReq)
+		time.Sleep(1000 * time.Microsecond)
 
-		body, err := io.ReadAll(recorder.Body)
+		debugRecorder := httptest.NewRecorder()
+		debugReq := httptest.NewRequest(http.MethodGet, "http://localhost/?debug=redirects-dump", nil)
+
+		instance.ServeHTTP(debugRecorder, debugReq)
+
+		body, err := io.ReadAll(debugRecorder.Body)
 		assert.NoError(t, err)
-		assert.Equal(t, 200, recorder.Result().StatusCode)
-		assert.Equal(t, "application/json", recorder.Header().Get("Content-Type"))
+		assert.Equal(t, 200, debugRecorder.Result().StatusCode)
+		assert.Equal(t, "application/json", debugRecorder.Header().Get("Content-Type"))
 
 		var data map[string]interface{}
 		err = json.Unmarshal(body, &data)
 		assert.NoError(t, err)
-
 		assert.Len(t, data["redirects"], 1)
 	})
 }

@@ -2,16 +2,15 @@ package provider
 
 import (
 	"github.com/jacekstarondiscovery/traefik-redirector/pkg/client"
+	"github.com/jacekstarondiscovery/traefik-redirector/pkg/log"
 	"github.com/stretchr/testify/assert"
-	"log"
-	"os"
 	"regexp"
 	"testing"
 )
 
 func TestGetRedirects(t *testing.T) {
 	t.Run("should return redirects", func(t *testing.T) {
-		logger := log.New(os.Stdout, "[TraefikRedirector]", 0)
+		logger := log.New(log.Debug)
 
 		p := New(logger, &client.MockClient{})
 

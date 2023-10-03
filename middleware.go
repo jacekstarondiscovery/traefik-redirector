@@ -6,22 +6,22 @@ import (
 	"fmt"
 	"github.com/jacekstarondiscovery/traefik-redirector/pkg/cache"
 	"github.com/jacekstarondiscovery/traefik-redirector/pkg/client"
+	"github.com/jacekstarondiscovery/traefik-redirector/pkg/log"
 	"github.com/jacekstarondiscovery/traefik-redirector/pkg/model"
 	"github.com/jacekstarondiscovery/traefik-redirector/pkg/provider"
-	"log"
 	"net/http"
-	"os"
 	"time"
 )
 
 type Config struct {
-	MaxAge             int64  `json:"maxAge"`
-	CacheControlMaxAge int    `json:"cacheControlMaxAge"`
-	Endpoint           string `json:"endpoint"`
-	Method             string `json:"method"`
-	Data               string `json:"data,omitempty"`
-	ClientType         string `json:"clientType"`
-	DebugParameter     string `json:"debugParameter"`
+	MaxAge             int64     `json:"maxAge"`
+	CacheControlMaxAge int       `json:"cacheControlMaxAge"`
+	Endpoint           string    `json:"endpoint"`
+	Method             string    `json:"method"`
+	Data               string    `json:"data,omitempty"`
+	ClientType         string    `json:"clientType"`
+	DebugParameter     string    `json:"debugParameter"`
+	LogLevel           log.Level `json:"logLevel"`
 }
 
 func CreateConfig() *Config {
@@ -33,6 +33,7 @@ func CreateConfig() *Config {
 		Endpoint:           "",
 		Data:               "",
 		DebugParameter:     "debug",
+		LogLevel:           log.Debug,
 	}
 }
 
@@ -46,9 +47,9 @@ type TraefikRedirector struct {
 }
 
 func (r *TraefikRedirector) UpdateRedirects() bool {
-	r.log.Println("[UpdateRedirects] Update redirects")
+	r.log.Debug("[UpdateRedirects] Update redirects")
 	if !r.cache.Lock() {
-		r.log.Println("[UpdateRedirects] Cache is locked")
+		r.log.Error("[UpdateRedirects] Cache is locked")
 		return false
 	}
 
@@ -56,11 +57,11 @@ func (r *TraefikRedirector) UpdateRedirects() bool {
 
 	redirects, err := r.provider.GetRedirects(r.config.Method, r.config.Endpoint, r.config.Data)
 	if err != nil {
-		r.log.Println("[UpdateRedirects] Fetch error", err)
+		r.log.Error("[UpdateRedirects] Fetch error", fmt.Sprintf("%+v", redirects))
 		return false
 	}
 
-	r.log.Println("[UpdateRedirects] Update Cache with: ", redirects)
+	r.log.Debug("[UpdateRedirects] Update Cache with: ", fmt.Sprintf("%+v", redirects))
 	r.cache.Update(redirects)
 
 	return true
@@ -77,8 +78,8 @@ func (r *TraefikRedirector) GetRedirects() []model.Redirect {
 }
 
 func New(ctx context.Context, next http.Handler, config *Config, name string) (http.Handler, error) {
-	logger := log.New(os.Stdout, "[TraefikRedirector]", 0)
-	logger.Println("[New] with: ", config)
+	logger := log.New(config.LogLevel)
+	logger.Debug("[New] with: ", fmt.Sprintf("%+v", config))
 
 	var cl client.HTTPClient
 	if config.ClientType == "mock" {
@@ -95,9 +96,6 @@ func New(ctx context.Context, next http.Handler, config *Config, name string) (h
 		cache:    cache.New(config.MaxAge, time.Now),
 		provider: provider.New(logger, cl),
 	}
-
-	logger.Println("[New] Warming-up cache")
-	tr.UpdateRedirects()
 
 	return tr, nil
 }
@@ -120,11 +118,11 @@ func (r *TraefikRedirector) ServeHTTP(rw http.ResponseWriter, req *http.Request)
 
 func (r *TraefikRedirector) ServeRedirect(rw http.ResponseWriter, req *http.Request) bool {
 	redirects := r.GetRedirects()
-	r.log.Println("[ServeHTTP] Redirects: ", redirects)
+	r.log.Debug("[ServeHTTP] Redirects: ", fmt.Sprintf("%+v", redirects))
 
 	for _, red := range redirects {
 		if red.FromPattern.MatchString(req.URL.Path) {
-			r.log.Println("[ServeHTTP] Redirect from:", req.URL.Path, "to: ", red.To)
+			r.log.Debug("[ServeHTTP] Redirect from:", req.URL.Path, "to: ", red.To)
 			rw.Header().Set("X-Redirected-With", "trf-redirector")
 			if r.config.CacheControlMaxAge > 0 {
 				rw.Header().Set("Cache-Control", fmt.Sprintf("max-age=%d, s-maxage=%d", r.config.CacheControlMaxAge, r.config.CacheControlMaxAge))
@@ -139,7 +137,7 @@ func (r *TraefikRedirector) ServeRedirect(rw http.ResponseWriter, req *http.Requ
 
 func (r *TraefikRedirector) ServeLoad(rw http.ResponseWriter, req *http.Request) bool {
 	if req.URL.Query().Get(r.config.DebugParameter) == "redirects-load" {
-		r.log.Println("[ServeLoad]")
+		r.log.Debug("[ServeLoad]")
 		res := r.UpdateRedirects()
 		if res {
 			rw.WriteHeader(http.StatusCreated)
@@ -155,10 +153,10 @@ func (r *TraefikRedirector) ServeLoad(rw http.ResponseWriter, req *http.Request)
 
 func (r *TraefikRedirector) ServeDebug(rw http.ResponseWriter, req *http.Request) bool {
 	if req.URL.Query().Get(r.config.DebugParameter) == "redirects-dump" {
-		r.log.Println("[ServeDebug]")
+		r.log.Debug("[ServeDebug]")
 		jsonResp, err := json.Marshal(r.cache)
 		if err != nil {
-			r.log.Println("Unable to serialize redirects", err)
+			r.log.Error("Unable to serialize redirects", err)
 			return false
 		}
 
@@ -166,7 +164,7 @@ func (r *TraefikRedirector) ServeDebug(rw http.ResponseWriter, req *http.Request
 		rw.Header().Set("Content-Type", "application/json")
 		_, err = rw.Write(jsonResp)
 		if err != nil {
-			r.log.Println("Unable to send response", err)
+			r.log.Error("Unable to send response", err)
 			return false
 		}
 

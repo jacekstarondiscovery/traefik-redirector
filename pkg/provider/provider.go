@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"github.com/jacekstarondiscovery/traefik-redirector/pkg/client"
+	"github.com/jacekstarondiscovery/traefik-redirector/pkg/log"
 	"github.com/jacekstarondiscovery/traefik-redirector/pkg/model"
 	"io"
-	"log"
 	"net/http"
 	"regexp"
 )
@@ -42,6 +42,8 @@ func (p *Provider) GetRedirects(method, endpoint, data string) ([]model.Redirect
 		return nil, err
 	}
 
+	p.log.Debug("[GetRedirects] Response Body", string(body))
+
 	redResp := &model.RedirectApiResponse{}
 	err = json.Unmarshal(body, redResp)
 	if err != nil {
@@ -56,7 +58,7 @@ func (p *Provider) build(redResp *model.RedirectApiResponse) []model.Redirect {
 	for _, redir := range redResp.Data.Redirects {
 		fromPattern, err := regexp.Compile(redir.From)
 		if err != nil {
-			p.log.Println("Unable to compile regexp: ", redir.From)
+			p.log.Error("Unable to compile regexp: ", redir.From)
 			continue
 		}
 
